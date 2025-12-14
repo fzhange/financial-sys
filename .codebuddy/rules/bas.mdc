@@ -1,0 +1,22 @@
+---
+trigger: always_on
+---
+
+---
+trigger: always_on
+---
+
+---
+description: 
+globs:
+alwaysApply: true
+---
+# my-rule
+
+- 这个项目主要是用来做进销存ERP系统的财务模块原型图设计。
+- 这是一个基于Next.js (https://nextjs.org/) 框架的项目
+- 项目内使用的组件库是 Ant Design (https://ant.design/components/overview-cn/)
+- 样式是基于 tailwindcss
+- 所有的弹窗都按85vw的宽度做
+- 设计页面的时候，如果涉及到TAB设计的话，一般左侧是TAB，右侧是内容。 
+- 设计到报表统计类交互的时候，统计交互放在最上面，内容放下面
