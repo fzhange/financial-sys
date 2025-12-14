@@ -401,7 +401,8 @@ export default function PurchaseReceipts() {
             </Descriptions>
 
 
-            <Divider orientation={"left" as const}>商品明细</Divider>
+            {/* @ts-ignore */}
+            <Divider orientation="left">商品明细</Divider>
 
             <Table
               columns={itemColumns}

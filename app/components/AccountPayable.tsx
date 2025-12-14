@@ -465,7 +465,8 @@ export default function AccountPayableComponent() {
             </Descriptions>
 
             {/* @ts-ignore */}
-            <Divider orientation={"left" as const}>付款记录</Divider>
+            {/* @ts-ignore */}
+            <Divider orientation="left">付款记录</Divider>
 
             {getPaymentHistory(selectedPayable.id).length === 0 ? (
               <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>

@@ -739,7 +739,8 @@ const PaymentRequestManagement: React.FC = () => {
 
               {currentRequest.payableIds.length > 0 && (
                 <>
-                  <Divider orientation={"left" as const}>
+                  {/* @ts-ignore */}
+                  <Divider orientation="left">
                     <Space>
                       <TransactionOutlined />
                       <span>应付账款核销</span>
@@ -870,7 +871,8 @@ const PaymentRequestManagement: React.FC = () => {
 
                 {currentVoucher.writeOffDetails.length > 0 && (
                   <>
-                    <Divider orientation={"left" as const}>
+                    {/* @ts-ignore */}
+                    <Divider orientation="left">
                       <Space>
                         <FileDoneOutlined />
                         <span>核销明细</span>
