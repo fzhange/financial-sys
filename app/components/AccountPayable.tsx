@@ -464,7 +464,7 @@ export default function AccountPayableComponent() {
               <Descriptions.Item label="备注" span={2}>{selectedPayable.remark || '-'}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">付款记录</Divider>
+            <Divider orientation={"left" as const}>付款记录</Divider>
 
             {getPaymentHistory(selectedPayable.id).length === 0 ? (
               <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>
