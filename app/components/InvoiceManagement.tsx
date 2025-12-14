@@ -68,7 +68,7 @@ const InvoiceManagement: React.FC = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<string>('');
   const [form] = Form.useForm();
   const [matchForm] = Form.useForm();
-  
+
   // 发票上传相关状态
   const [uploadedFile, setUploadedFile] = useState<UploadFile | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
@@ -117,17 +117,17 @@ const InvoiceManagement: React.FC = () => {
   // 模拟OCR识别
   const simulateOcrRecognition = () => {
     setIsRecognizing(true);
-    
+
     // 模拟识别延迟
     setTimeout(() => {
       // 随机选择一个模拟结果
       const randomResult = mockOcrResults[Math.floor(Math.random() * mockOcrResults.length)];
-      
+
       // 查找匹配的供应商ID
-      const matchedSupplier = mockSuppliers.find(s => 
+      const matchedSupplier = mockSuppliers.find(s =>
         s.name === randomResult.supplierName || s.name.includes(randomResult.supplierName.substring(0, 2))
       );
-      
+
       // 填充表单
       form.setFieldsValue({
         invoiceNo: randomResult.invoiceNo,
@@ -138,7 +138,7 @@ const InvoiceManagement: React.FC = () => {
         amount: randomResult.amount,
         taxRate: randomResult.taxRate,
       });
-      
+
       setIsRecognizing(false);
       setRecognizeSuccess(true);
       message.success('发票识别成功，信息已自动填充');
@@ -148,17 +148,17 @@ const InvoiceManagement: React.FC = () => {
   // 处理文件上传
   const handleUpload: UploadProps['onChange'] = (info) => {
     const { file } = info;
-    
+
     if (file.status === 'removed') {
       setUploadedFile(null);
       setPreviewUrl('');
       setRecognizeSuccess(false);
       return;
     }
-    
+
     setUploadedFile(file);
     setRecognizeSuccess(false);
-    
+
     // 生成预览URL
     if (file.originFileObj) {
       const url = URL.createObjectURL(file.originFileObj);
@@ -224,8 +224,8 @@ const InvoiceManagement: React.FC = () => {
     if (activeTab === 'verified') matchTab = i.verifyStatus === 'verified';
     if (activeTab === 'matched') matchTab = i.matchStatus === 'matched';
     if (activeTab === 'unmatched') matchTab = i.matchStatus === 'pending' || i.matchStatus === 'unmatched';
-    
-    const matchSearch = !searchText || 
+
+    const matchSearch = !searchText ||
       i.invoiceNo.toLowerCase().includes(searchText.toLowerCase()) ||
       i.supplierName.includes(searchText);
     const matchSupplier = !selectedSupplier || i.supplierId === selectedSupplier;
@@ -368,15 +368,15 @@ const InvoiceManagement: React.FC = () => {
   };
 
   const handleVerify = (id: string) => {
-    setInvoices(prev => prev.map(i => 
-      i.id === id 
-        ? { 
-            ...i, 
-            verifyStatus: 'verified' as const, 
-            status: 'verified' as const,
-            verifiedAt: dayjs().format('YYYY-MM-DD'),
-            updatedAt: dayjs().format('YYYY-MM-DD') 
-          }
+    setInvoices(prev => prev.map(i =>
+      i.id === id
+        ? {
+          ...i,
+          verifyStatus: 'verified' as const,
+          status: 'verified' as const,
+          verifiedAt: dayjs().format('YYYY-MM-DD'),
+          updatedAt: dayjs().format('YYYY-MM-DD')
+        }
         : i
     ));
     message.success('发票验真成功');
@@ -391,25 +391,25 @@ const InvoiceManagement: React.FC = () => {
   const handleMatch = () => {
     matchForm.validateFields().then(values => {
       if (!currentInvoice) return;
-      
-      const payableNos = values.payableIds?.map((id: string) => 
+
+      const payableNos = values.payableIds?.map((id: string) =>
         mockAccountPayables.find(p => p.id === id)?.payableNo || ''
       ) || [];
-      const reconciliationNos = values.reconciliationIds?.map((id: string) => 
+      const reconciliationNos = values.reconciliationIds?.map((id: string) =>
         mockReconciliationStatements.find(r => r.id === id)?.statementNo || ''
       ) || [];
 
-      setInvoices(prev => prev.map(i => 
-        i.id === currentInvoice.id 
-          ? { 
-              ...i, 
-              matchStatus: 'matched' as const,
-              payableIds: values.payableIds || [],
-              payableNos,
-              reconciliationIds: values.reconciliationIds || [],
-              reconciliationNos,
-              updatedAt: dayjs().format('YYYY-MM-DD') 
-            }
+      setInvoices(prev => prev.map(i =>
+        i.id === currentInvoice.id
+          ? {
+            ...i,
+            matchStatus: 'matched' as const,
+            payableIds: values.payableIds || [],
+            payableNos,
+            reconciliationIds: values.reconciliationIds || [],
+            reconciliationNos,
+            updatedAt: dayjs().format('YYYY-MM-DD')
+          }
           : i
       ));
       setIsMatchVisible(false);
@@ -546,7 +546,7 @@ const InvoiceManagement: React.FC = () => {
       {/* 发票列表 */}
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        
+
         <div className="flex justify-between items-center mb-4">
           <Space>
             <Input
@@ -617,7 +617,7 @@ const InvoiceManagement: React.FC = () => {
                 支持电子发票(PDF/OFD)或纸质发票照片(JPG/PNG)
               </div>
             </div>
-            
+
             {!uploadedFile ? (
               <Dragger
                 name="invoice"
@@ -657,7 +657,7 @@ const InvoiceManagement: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
+
                 {/* 文件信息 */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center">
@@ -666,9 +666,9 @@ const InvoiceManagement: React.FC = () => {
                       {uploadedFile.name}
                     </span>
                   </div>
-                  <Button 
-                    type="link" 
-                    danger 
+                  <Button
+                    type="link"
+                    danger
                     size="small"
                     onClick={() => {
                       setUploadedFile(null);
@@ -679,7 +679,7 @@ const InvoiceManagement: React.FC = () => {
                     删除
                   </Button>
                 </div>
-                
+
                 {/* 识别按钮 */}
                 {!recognizeSuccess ? (
                   <Button
@@ -702,7 +702,7 @@ const InvoiceManagement: React.FC = () => {
                 )}
               </div>
             )}
-            
+
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-600 font-medium mb-2">
                 <SafetyCertificateOutlined className="mr-1" />
@@ -716,7 +716,7 @@ const InvoiceManagement: React.FC = () => {
               </ul>
             </div>
           </Col>
-          
+
           {/* 右侧：表单区域 */}
           <Col span={14}>
             <div className="font-medium mb-3">发票信息</div>
@@ -813,6 +813,7 @@ const InvoiceManagement: React.FC = () => {
                         prefix="¥"
                         placeholder="请输入不含税金额"
                         formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        // @ts-ignore 1
                         parser={value => value?.replace(/,/g, '') as unknown as number}
                       />
                     </Form.Item>

@@ -577,7 +577,7 @@ export default function ReconciliationCheck({ onConfirmReconciliation }: Reconci
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">商品明细</Divider>
+            <Divider orientation={"left" as const}>商品明细</Divider>
 
             <Table
               columns={receiptItemColumns}

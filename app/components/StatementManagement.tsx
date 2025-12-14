@@ -627,7 +627,7 @@ export default function StatementManagement() {
               <Descriptions.Item label="确认人">{selectedStatement.confirmedBy || '-'}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">关联入库单明细</Divider>
+            <Divider orientation={"left" as const}>关联入库单明细</Divider>
 
             <Table
               columns={receiptColumns}

@@ -385,7 +385,7 @@ export default function PurchaseReceipts() {
               <Descriptions.Item label="入库SKU数">{selectedReceipt.skuCount}</Descriptions.Item>
               <Descriptions.Item label="入库数量">{selectedReceipt.totalQuantity}</Descriptions.Item>
               <Descriptions.Item label="良品/次品">
-                {selectedReceipt.goodQuantity} / 
+                {selectedReceipt.goodQuantity} /
                 <span style={{ color: selectedReceipt.defectQuantity > 0 ? '#ff4d4f' : undefined }}>
                   {selectedReceipt.defectQuantity}
                 </span>
@@ -400,7 +400,8 @@ export default function PurchaseReceipts() {
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">商品明细</Divider>
+
+            <Divider orientation={"left" as const}>商品明细</Divider>
 
             <Table
               columns={itemColumns}

@@ -103,7 +103,7 @@ const PaymentRequestManagement: React.FC = () => {
 
   const filteredRequests = requests.filter(r => {
     const matchTab = activeTab === 'all' || r.status === activeTab;
-    const matchSearch = !searchText || 
+    const matchSearch = !searchText ||
       r.requestNo.toLowerCase().includes(searchText.toLowerCase()) ||
       r.supplierName.includes(searchText);
     const matchSupplier = !selectedSupplier || r.supplierId === selectedSupplier;
@@ -112,9 +112,9 @@ const PaymentRequestManagement: React.FC = () => {
 
   // 获取请款单关联的待核销应付账款
   const getRelatedPayables = (request: PaymentRequest) => {
-    return payables.filter(p => 
-      request.payableIds.includes(p.id) && 
-      p.status !== 'paid' && 
+    return payables.filter(p =>
+      request.payableIds.includes(p.id) &&
+      p.status !== 'paid' &&
       p.status !== 'cancelled'
     );
   };
@@ -260,8 +260,8 @@ const PaymentRequestManagement: React.FC = () => {
   };
 
   const handleApprove = (id: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === id 
+    setRequests(prev => prev.map(r =>
+      r.id === id
         ? { ...r, status: 'approved' as const, approvedAmount: r.requestAmount, approver: '财务主管', approvedAt: dayjs().format('YYYY-MM-DD'), updatedAt: dayjs().format('YYYY-MM-DD') }
         : r
     ));
@@ -269,8 +269,8 @@ const PaymentRequestManagement: React.FC = () => {
   };
 
   const handleReject = (id: string) => {
-    setRequests(prev => prev.map(r => 
-      r.id === id 
+    setRequests(prev => prev.map(r =>
+      r.id === id
         ? { ...r, status: 'rejected' as const, approver: '财务主管', approvedAt: dayjs().format('YYYY-MM-DD'), updatedAt: dayjs().format('YYYY-MM-DD') }
         : r
     ));
@@ -280,11 +280,11 @@ const PaymentRequestManagement: React.FC = () => {
   // 打开付款弹窗
   const handleOpenPayModal = (record: PaymentRequest) => {
     setCurrentRequest(record);
-    
+
     // 获取关联的应付账款并计算核销金额
     const relatedPayables = getRelatedPayables(record);
     let remainingAmount = record.approvedAmount;
-    
+
     const writeOffItems = relatedPayables.map(p => {
       const writeOffAmount = Math.min(p.unpaidAmount, remainingAmount);
       remainingAmount -= writeOffAmount;
@@ -295,29 +295,29 @@ const PaymentRequestManagement: React.FC = () => {
         writeOffAmount,
       };
     });
-    
+
     payForm.setFieldsValue({
       paymentDate: dayjs(),
       paymentMethod: record.paymentMethod,
       writeOffItems,
       remark: '',
     });
-    
+
     setIsPayModalVisible(true);
   };
 
   // 执行付款
   const handlePay = () => {
     if (!currentRequest) return;
-    
+
     payForm.validateFields().then(values => {
       const paymentDate = values.paymentDate.format('YYYY-MM-DD');
       const voucherNo = `FK${dayjs().format('YYYYMMDD')}${String(paymentVouchers.length + 1).padStart(3, '0')}`;
-      
+
       // 构建核销明细
       const writeOffDetails: WriteOffDetail[] = [];
       const updatedPayables = [...payables];
-      
+
       values.writeOffItems?.forEach((item: { payableId: string; writeOffAmount: number }) => {
         if (item.writeOffAmount > 0) {
           const payableIndex = updatedPayables.findIndex(p => p.id === item.payableId);
@@ -325,7 +325,7 @@ const PaymentRequestManagement: React.FC = () => {
             const payable = updatedPayables[payableIndex];
             const newPaidAmount = payable.paidAmount + item.writeOffAmount;
             const newUnpaidAmount = payable.amount - newPaidAmount;
-            
+
             writeOffDetails.push({
               id: `wo-${Date.now()}-${item.payableId}`,
               payableId: item.payableId,
@@ -334,7 +334,7 @@ const PaymentRequestManagement: React.FC = () => {
               writeOffAmount: item.writeOffAmount,
               remainingAmount: newUnpaidAmount,
             });
-            
+
             // 更新应付账款
             updatedPayables[payableIndex] = {
               ...payable,
@@ -347,7 +347,7 @@ const PaymentRequestManagement: React.FC = () => {
           }
         }
       });
-      
+
       // 创建付款单
       const newVoucher: PaymentVoucher = {
         id: `pv-${Date.now()}`,
@@ -370,30 +370,30 @@ const PaymentRequestManagement: React.FC = () => {
         createdAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
         updatedAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
       };
-      
+
       // 更新请款单状态
-      setRequests(prev => prev.map(r => 
-        r.id === currentRequest.id 
-          ? { 
-              ...r, 
-              status: 'paid' as const, 
-              actualPayDate: paymentDate, 
-              paidAt: dayjs().format('YYYY-MM-DD HH:mm:ss'), 
-              updatedAt: dayjs().format('YYYY-MM-DD') 
-            }
+      setRequests(prev => prev.map(r =>
+        r.id === currentRequest.id
+          ? {
+            ...r,
+            status: 'paid' as const,
+            actualPayDate: paymentDate,
+            paidAt: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: dayjs().format('YYYY-MM-DD')
+          }
           : r
       ));
-      
+
       // 更新应付账款
       setPayables(updatedPayables);
-      
+
       // 保存付款单
       setPaymentVouchers(prev => [newVoucher, ...prev]);
       setCurrentVoucher(newVoucher);
-      
+
       setIsPayModalVisible(false);
       setIsVoucherVisible(true);
-      
+
       message.success('付款成功，已生成付款单并核销应付账款');
     });
   };
@@ -520,7 +520,7 @@ const PaymentRequestManagement: React.FC = () => {
       {/* 请款单列表 */}
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-        
+
         <div className="flex justify-between items-center mb-4">
           <Space>
             <Input
@@ -696,7 +696,7 @@ const PaymentRequestManagement: React.FC = () => {
               type="info"
               showIcon
             />
-            
+
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="请款单号">{currentRequest.requestNo}</Descriptions.Item>
               <Descriptions.Item label="供应商">{currentRequest.supplierName}</Descriptions.Item>
@@ -709,7 +709,7 @@ const PaymentRequestManagement: React.FC = () => {
               <Descriptions.Item label="收款银行">{currentRequest.bankName}</Descriptions.Item>
               <Descriptions.Item label="收款账号">{currentRequest.bankAccount}</Descriptions.Item>
             </Descriptions>
-            
+
             <Form form={payForm} layout="vertical">
               <Row gutter={16}>
                 <Col span={12}>
@@ -736,16 +736,16 @@ const PaymentRequestManagement: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
-              
+
               {currentRequest.payableIds.length > 0 && (
                 <>
-                  <Divider orientation="left">
+                  <Divider orientation={"left" as const}>
                     <Space>
                       <TransactionOutlined />
                       <span>应付账款核销</span>
                     </Space>
                   </Divider>
-                  
+
                   <Form.List name="writeOffItems">
                     {(fields) => (
                       <Table
@@ -824,7 +824,7 @@ const PaymentRequestManagement: React.FC = () => {
                   </Form.List>
                 </>
               )}
-              
+
               <Form.Item name="remark" label="付款备注" style={{ marginTop: 16 }}>
                 <TextArea rows={2} placeholder="请输入付款备注" />
               </Form.Item>
@@ -867,10 +867,10 @@ const PaymentRequestManagement: React.FC = () => {
                   <Descriptions.Item label="操作人">{currentVoucher.operator}</Descriptions.Item>
                   <Descriptions.Item label="操作时间">{currentVoucher.createdAt}</Descriptions.Item>
                 </Descriptions>
-                
+
                 {currentVoucher.writeOffDetails.length > 0 && (
                   <>
-                    <Divider orientation="left">
+                    <Divider orientation={"left" as const}>
                       <Space>
                         <FileDoneOutlined />
                         <span>核销明细</span>
@@ -880,24 +880,24 @@ const PaymentRequestManagement: React.FC = () => {
                       dataSource={currentVoucher.writeOffDetails}
                       columns={[
                         { title: '应付单号', dataIndex: 'payableNo', width: 140 },
-                        { 
-                          title: '应付金额', 
-                          dataIndex: 'payableAmount', 
-                          width: 120, 
+                        {
+                          title: '应付金额',
+                          dataIndex: 'payableAmount',
+                          width: 120,
                           align: 'right',
                           render: (v) => `¥${v.toLocaleString()}`,
                         },
-                        { 
-                          title: '核销金额', 
-                          dataIndex: 'writeOffAmount', 
-                          width: 120, 
+                        {
+                          title: '核销金额',
+                          dataIndex: 'writeOffAmount',
+                          width: 120,
                           align: 'right',
                           render: (v) => <span style={{ color: '#52c41a' }}>¥{v.toLocaleString()}</span>,
                         },
-                        { 
-                          title: '剩余金额', 
-                          dataIndex: 'remainingAmount', 
-                          width: 120, 
+                        {
+                          title: '剩余金额',
+                          dataIndex: 'remainingAmount',
+                          width: 120,
                           align: 'right',
                           render: (v) => (
                             <span style={{ color: v <= 0 ? '#52c41a' : '#faad14' }}>
@@ -910,7 +910,7 @@ const PaymentRequestManagement: React.FC = () => {
                           key: 'status',
                           width: 80,
                           render: (_, record) => (
-                            record.remainingAmount <= 0 
+                            record.remainingAmount <= 0
                               ? <Tag color="success">已结清</Tag>
                               : <Tag color="warning">部分核销</Tag>
                           ),
@@ -1028,15 +1028,15 @@ const PaymentRequestManagement: React.FC = () => {
                     ),
                   },
                   ...(currentRequest.status !== 'draft' ? [{
-                    color: currentRequest.status === 'rejected' ? 'red' : 
-                           currentRequest.status === 'pending' ? 'blue' : 'green',
-                    dot: currentRequest.status === 'pending' ? <SyncOutlined spin /> : 
-                         currentRequest.status === 'rejected' ? <CloseOutlined /> : <CheckCircleOutlined />,
+                    color: currentRequest.status === 'rejected' ? 'red' :
+                      currentRequest.status === 'pending' ? 'blue' : 'green',
+                    dot: currentRequest.status === 'pending' ? <SyncOutlined spin /> :
+                      currentRequest.status === 'rejected' ? <CloseOutlined /> : <CheckCircleOutlined />,
                     children: (
                       <div>
                         <div className="font-medium">
-                          {currentRequest.status === 'pending' ? '等待审批' : 
-                           currentRequest.status === 'rejected' ? '审批驳回' : '审批通过'}
+                          {currentRequest.status === 'pending' ? '等待审批' :
+                            currentRequest.status === 'rejected' ? '审批驳回' : '审批通过'}
                         </div>
                         <div className="text-gray-500 text-sm">
                           {currentRequest.approver || '待审批'} - {currentRequest.approvedAt || '进行中'}
