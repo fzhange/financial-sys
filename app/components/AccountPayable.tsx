@@ -35,11 +35,11 @@ import {
   SearchOutlined,
   FileExcelOutlined,
 } from '@ant-design/icons';
-import { 
-  mockAccountPayables, 
-  mockPaymentRecords, 
+import {
+  mockAccountPayables,
+  mockPaymentRecords,
   mockSuppliers,
-  getPayableStats 
+  getPayableStats
 } from '../lib/mockData';
 import type { AccountPayable as AccountPayableType, PaymentRecord } from '../types';
 import dayjs from 'dayjs';
@@ -143,13 +143,13 @@ export default function AccountPayableComponent() {
         payables.map((p) =>
           p.id === selectedPayable.id
             ? {
-                ...p,
-                paidAmount: newPaidAmount,
-                unpaidAmount: newUnpaidAmount,
-                status: newStatus,
-                updatedAt: dayjs().format('YYYY-MM-DD'),
-                paidAt: newStatus === 'paid' ? dayjs().format('YYYY-MM-DD') : undefined,
-              }
+              ...p,
+              paidAmount: newPaidAmount,
+              unpaidAmount: newUnpaidAmount,
+              status: newStatus,
+              updatedAt: dayjs().format('YYYY-MM-DD'),
+              paidAt: newStatus === 'paid' ? dayjs().format('YYYY-MM-DD') : undefined,
+            }
             : p
         )
       );
@@ -344,8 +344,8 @@ export default function AccountPayableComponent() {
         <Col xs={24} sm={12} lg={4}>
           <Card size="small">
             <div style={{ color: '#666', fontSize: 12, marginBottom: 8 }}>付款进度</div>
-            <Progress 
-              percent={Math.round((stats.paidAmount / stats.totalAmount) * 100)} 
+            <Progress
+              percent={Math.round((stats.paidAmount / stats.totalAmount) * 100)}
               size="small"
               status={stats.overdueCount > 0 ? 'exception' : 'active'}
             />
@@ -464,6 +464,7 @@ export default function AccountPayableComponent() {
               <Descriptions.Item label="备注" span={2}>{selectedPayable.remark || '-'}</Descriptions.Item>
             </Descriptions>
 
+            {/* @ts-ignore */}
             <Divider orientation={"left" as const}>付款记录</Divider>
 
             {getPaymentHistory(selectedPayable.id).length === 0 ? (
@@ -514,11 +515,11 @@ export default function AccountPayableComponent() {
       >
         {selectedPayable && (
           <>
-            <div style={{ 
-              background: '#f5f5f5', 
-              padding: 16, 
-              borderRadius: 8, 
-              marginBottom: 16 
+            <div style={{
+              background: '#f5f5f5',
+              padding: 16,
+              borderRadius: 8,
+              marginBottom: 16
             }}>
               <Row gutter={16}>
                 <Col span={12}>
