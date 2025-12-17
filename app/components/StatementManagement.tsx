@@ -28,8 +28,9 @@ import {
   SearchOutlined,
   FileExcelOutlined,
   DeleteOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
-import { mockReconciliationStatements, mockSuppliers, mockPurchaseReceipts } from '../lib/mockData';
+import { mockReconciliationStatements, mockSuppliers, mockPurchaseReceipts, mockAccountPayables } from '../lib/mockData';
 import type { ReconciliationStatement, ReconciliationReceiptItem, PurchaseReceipt } from '../types';
 import dayjs from 'dayjs';
 
@@ -51,7 +52,11 @@ const reconciliationStatusConfig: Record<string, { color: string; text: string }
   unmatched: { color: 'error', text: '未对账' },
 };
 
-export default function StatementManagement() {
+interface StatementManagementProps {
+  onNavigateToPayable?: (payableNo: string) => void;
+}
+
+export default function StatementManagement({ onNavigateToPayable }: StatementManagementProps) {
   const [statements, setStatements] = useState<ReconciliationStatement[]>(mockReconciliationStatements);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -106,6 +111,10 @@ export default function StatementManagement() {
       okText: '确认',
       cancelText: '取消',
       onOk: () => {
+        // 生成应付单号
+        const newPayableNo = `AP${dayjs().format('YYYYMMDD')}${String(mockAccountPayables.length + 1).padStart(3, '0')}`;
+        const newPayableId = `ap-${Date.now()}`;
+        
         setStatements(
           statements.map((s) =>
             s.id === record.id
@@ -115,13 +124,24 @@ export default function StatementManagement() {
                   confirmedAmount: s.reconciliationAmount,
                   confirmedAt: new Date().toISOString(),
                   confirmedBy: '财务管理员',
+                  payableId: newPayableId,
+                  payableNo: newPayableNo,
                 }
               : s
           )
         );
-        message.success('对账单已确认，应付账款已生成');
+        message.success(`对账单已确认，应付账款 ${newPayableNo} 已生成`);
       },
     });
+  };
+
+  // 点击应付单号跳转到应付账款模块
+  const handlePayableClick = (payableNo: string) => {
+    if (onNavigateToPayable) {
+      onNavigateToPayable(payableNo);
+    } else {
+      message.info(`跳转到应付账款: ${payableNo}`);
+    }
   };
 
   const handleSubmit = async () => {
@@ -271,6 +291,23 @@ export default function StatementManagement() {
         record.status === 'confirmed' 
           ? `¥${record.confirmedAmount.toLocaleString()}`
           : '-'
+      ),
+    },
+    {
+      title: '关联应付单',
+      dataIndex: 'payableNo',
+      key: 'payableNo',
+      width: 140,
+      render: (payableNo: string, record: ReconciliationStatement) => (
+        payableNo ? (
+          <a 
+            onClick={() => handlePayableClick(payableNo)}
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            <LinkOutlined />
+            {payableNo}
+          </a>
+        ) : '-'
       ),
     },
     {

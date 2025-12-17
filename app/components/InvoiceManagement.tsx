@@ -26,12 +26,13 @@ import {
   Spin,
   Alert,
   Image,
-  Divider,
+  Steps,
+  Progress,
+  Result,
 } from 'antd';
 import {
   PlusOutlined,
   SearchOutlined,
-  CheckOutlined,
   CloseOutlined,
   FileTextOutlined,
   EyeOutlined,
@@ -39,13 +40,14 @@ import {
   UploadOutlined,
   SafetyCertificateOutlined,
   LinkOutlined,
-  WarningOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   InboxOutlined,
   ScanOutlined,
   FileImageOutlined,
   FilePdfOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadFile, UploadProps } from 'antd/es/upload';
@@ -75,7 +77,35 @@ const InvoiceManagement: React.FC = () => {
   const [recognizeSuccess, setRecognizeSuccess] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');
 
+  // 批量导入相关状态
+  const [isBatchImportVisible, setIsBatchImportVisible] = useState(false);
+  const [importStep, setImportStep] = useState(0);
+  const [importFileList, setImportFileList] = useState<UploadFile[]>([]);
+  const [importData, setImportData] = useState<ImportInvoiceData[]>([]);
+  const [importProgress, setImportProgress] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isRecognizingBatch, setIsRecognizingBatch] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+
   const stats = getInvoiceStats();
+
+  // 批量导入数据类型
+  interface ImportInvoiceData {
+    key: string;
+    fileName?: string;
+    invoiceNo: string;
+    invoiceCode: string;
+    invoiceType: string;
+    supplierName: string;
+    invoiceDate: string;
+    amount: number;
+    taxRate: number;
+    taxAmount: number;
+    totalAmount: number;
+    remark?: string;
+    status: 'valid' | 'error' | 'warning';
+    errorMsg?: string;
+  }
 
   // 模拟发票OCR识别数据
   const mockOcrResults = [
@@ -297,6 +327,30 @@ const InvoiceManagement: React.FC = () => {
       ),
     },
     {
+      title: '已关联金额',
+      dataIndex: 'matchedAmount',
+      key: 'matchedAmount',
+      width: 110,
+      align: 'right',
+      render: (amount, record) => (
+        <span style={{ color: amount > 0 ? '#52c41a' : '#999' }}>
+          ¥{(amount || 0).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      title: '未关联金额',
+      dataIndex: 'unmatchedAmount',
+      key: 'unmatchedAmount',
+      width: 110,
+      align: 'right',
+      render: (amount, record) => (
+        <span style={{ color: amount > 0 ? '#faad14' : '#999' }}>
+          ¥{(amount || 0).toLocaleString()}
+        </span>
+      ),
+    },
+    {
       title: '验真状态',
       dataIndex: 'verifyStatus',
       key: 'verifyStatus',
@@ -426,6 +480,283 @@ const InvoiceManagement: React.FC = () => {
     setIsModalVisible(true);
   };
 
+  // 批量导入相关函数
+  const handleOpenBatchImport = () => {
+    setIsBatchImportVisible(true);
+    setImportStep(0);
+    setImportFileList([]);
+    setImportData([]);
+    setImportProgress(0);
+    setIsImporting(false);
+    setIsRecognizingBatch(false);
+    setImportResult(null);
+  };
+
+  const handleBatchFileUpload: UploadProps['onChange'] = (info) => {
+    setImportFileList(info.fileList);
+  };
+
+  const handleRemoveFile = (uid: string) => {
+    setImportFileList(prev => prev.filter(f => f.uid !== uid));
+  };
+
+  const handleRecognizeAll = () => {
+    if (importFileList.length === 0) {
+      message.warning('请先上传发票文件');
+      return;
+    }
+    
+    setIsRecognizingBatch(true);
+    setImportStep(1);
+    
+    // 模拟批量OCR识别
+    setTimeout(() => {
+      const recognizedData: ImportInvoiceData[] = importFileList.map((file, index) => {
+        // 随机生成识别结果
+        const randomStatus = Math.random();
+        let status: 'valid' | 'warning' | 'error' = 'valid';
+        let errorMsg: string | undefined;
+        
+        if (randomStatus > 0.85) {
+          status = 'error';
+          errorMsg = '发票图片模糊，无法识别';
+        } else if (randomStatus > 0.7) {
+          status = 'warning';
+          errorMsg = '供应商信息需要人工确认';
+        }
+        
+        const suppliers = ['华为技术有限公司', '腾讯科技有限公司', '阿里巴巴集团', '京东集团', '字节跳动'];
+        const types = ['vat_special', 'vat_normal', 'electronic'];
+        const amount = Math.floor(Math.random() * 100000) + 10000;
+        const taxRate = [6, 9, 13][Math.floor(Math.random() * 3)];
+        const taxAmount = Math.round(amount * taxRate / 100);
+        
+        return {
+          key: file.uid,
+          fileName: file.name,
+          invoiceNo: status === 'error' ? '' : `${Math.floor(Math.random() * 90000000) + 10000000}`,
+          invoiceCode: `04400190030${index + 1}`,
+          invoiceType: types[Math.floor(Math.random() * types.length)],
+          supplierName: suppliers[Math.floor(Math.random() * suppliers.length)],
+          invoiceDate: `2024-12-${String(Math.floor(Math.random() * 15) + 1).padStart(2, '0')}`,
+          amount,
+          taxRate,
+          taxAmount,
+          totalAmount: amount + taxAmount,
+          status,
+          errorMsg,
+        };
+      });
+      
+      setImportData(recognizedData);
+      setIsRecognizingBatch(false);
+    }, 2000);
+  };
+
+  const handleRemoveImportRow = (key: string) => {
+    setImportData(prev => prev.filter(item => item.key !== key));
+    setImportFileList(prev => prev.filter(f => f.uid !== key));
+  };
+
+  const handleStartImport = () => {
+    const validData = importData.filter(item => item.status !== 'error');
+    if (validData.length === 0) {
+      message.warning('没有可导入的有效数据');
+      return;
+    }
+
+    setIsImporting(true);
+    setImportStep(2);
+    setImportProgress(0);
+
+    const total = validData.length;
+    let current = 0;
+    const interval = setInterval(() => {
+      current++;
+      setImportProgress(Math.round((current / total) * 100));
+      if (current >= total) {
+        clearInterval(interval);
+        setTimeout(() => {
+          const errorCount = importData.filter(item => item.status === 'error').length;
+          setImportResult({
+            success: validData.length,
+            failed: errorCount,
+            errors: importData.filter(item => item.status === 'error').map(item => `${item.invoiceCode}: ${item.errorMsg}`),
+          });
+
+          const newInvoices: Invoice[] = validData.map((item, index) => {
+            const supplier = mockSuppliers.find(s => s.name === item.supplierName);
+            return {
+              id: `inv-import-${Date.now()}-${index}`,
+              invoiceNo: item.invoiceNo,
+              invoiceCode: item.invoiceCode,
+              invoiceType: item.invoiceType as Invoice['invoiceType'],
+              supplierId: supplier?.id || '',
+              supplierName: item.supplierName,
+              buyerName: '本公司',
+              buyerTaxNo: '91440300MA5BBBBB',
+              invoiceDate: item.invoiceDate,
+              amount: item.amount,
+              taxRate: item.taxRate,
+              taxAmount: item.taxAmount,
+              totalAmount: item.totalAmount,
+              matchedAmount: 0,
+              unmatchedAmount: item.totalAmount,
+              payableIds: [],
+              payableNos: [],
+              reconciliationIds: [],
+              reconciliationNos: [],
+              verifyStatus: 'pending',
+              matchStatus: 'pending',
+              status: 'received',
+              receivedAt: dayjs().format('YYYY-MM-DD'),
+              remark: item.remark || '批量导入',
+              createdAt: dayjs().format('YYYY-MM-DD'),
+              updatedAt: dayjs().format('YYYY-MM-DD'),
+            };
+          });
+          setInvoices(prev => [...newInvoices, ...prev]);
+          setIsImporting(false);
+          setImportStep(3);
+        }, 500);
+      }
+    }, 300);
+  };
+
+  const handleCloseBatchImport = () => {
+    setIsBatchImportVisible(false);
+    if (importResult && importResult.success > 0) {
+      message.success(`成功导入 ${importResult.success} 条发票`);
+    }
+  };
+
+  // 导入数据表格列
+  const importColumns: ColumnsType<ImportInvoiceData> = [
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 80,
+      fixed: 'left',
+      render: (status, record) => {
+        if (status === 'valid') {
+          return <Tag color="success" icon={<CheckCircleOutlined />}>有效</Tag>;
+        } else if (status === 'warning') {
+          return (
+            <Tooltip title={record.errorMsg}>
+              <Tag color="warning" icon={<ExclamationCircleOutlined />}>警告</Tag>
+            </Tooltip>
+          );
+        } else {
+          return (
+            <Tooltip title={record.errorMsg}>
+              <Tag color="error" icon={<CloseOutlined />}>错误</Tag>
+            </Tooltip>
+          );
+        }
+      },
+    },
+    {
+      title: '文件名',
+      dataIndex: 'fileName',
+      key: 'fileName',
+      width: 150,
+      ellipsis: true,
+      render: (text) => (
+        <Tooltip title={text}>
+          <span className="text-gray-600">{text}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '发票号码',
+      dataIndex: 'invoiceNo',
+      key: 'invoiceNo',
+      width: 120,
+      render: (text, record) => (
+        <span style={{ color: record.status === 'error' && !text ? '#ff4d4f' : undefined }}>
+          {text || '-'}
+        </span>
+      ),
+    },
+    {
+      title: '发票代码',
+      dataIndex: 'invoiceCode',
+      key: 'invoiceCode',
+      width: 130,
+    },
+    {
+      title: '发票类型',
+      dataIndex: 'invoiceType',
+      key: 'invoiceType',
+      width: 110,
+      render: (type) => getInvoiceTypeTag(type),
+    },
+    {
+      title: '供应商',
+      dataIndex: 'supplierName',
+      key: 'supplierName',
+      width: 140,
+      ellipsis: true,
+      render: (text, record) => (
+        <span style={{ color: record.status === 'warning' ? '#faad14' : undefined }}>
+          {text}
+        </span>
+      ),
+    },
+    {
+      title: '开票日期',
+      dataIndex: 'invoiceDate',
+      key: 'invoiceDate',
+      width: 100,
+    },
+    {
+      title: '不含税金额',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 100,
+      align: 'right',
+      render: (amount) => `¥${amount?.toLocaleString() || 0}`,
+    },
+    {
+      title: '税率',
+      dataIndex: 'taxRate',
+      key: 'taxRate',
+      width: 60,
+      align: 'center',
+      render: (rate) => `${rate}%`,
+    },
+    {
+      title: '含税金额',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      width: 110,
+      align: 'right',
+      render: (amount) => (
+        <span style={{ fontWeight: 'bold', color: '#1890ff' }}>
+          ¥{amount?.toLocaleString() || 0}
+        </span>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          type="link"
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveImportRow(record.key)}
+        >
+          移除
+        </Button>
+      ),
+    },
+  ];
+
   const handleModalOk = () => {
     form.validateFields().then(values => {
       const amount = values.amount;
@@ -447,6 +778,8 @@ const InvoiceManagement: React.FC = () => {
         taxRate,
         taxAmount,
         totalAmount,
+        matchedAmount: 0,
+        unmatchedAmount: totalAmount,
         payableIds: [],
         payableNos: [],
         reconciliationIds: [],
@@ -576,7 +909,7 @@ const InvoiceManagement: React.FC = () => {
             <RangePicker placeholder={['开票开始', '开票结束']} />
           </Space>
           <Space>
-            <Button icon={<UploadOutlined />}>批量导入</Button>
+            <Button icon={<UploadOutlined />} onClick={handleOpenBatchImport}>批量导入</Button>
             <Button icon={<ExportOutlined />}>导出</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateInvoice}>
               登记发票
@@ -589,7 +922,7 @@ const InvoiceManagement: React.FC = () => {
           dataSource={filteredInvoices}
           rowKey="id"
           size="small"
-          scroll={{ x: 1600 }}
+          scroll={{ x: 1820 }}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,
@@ -868,6 +1201,16 @@ const InvoiceManagement: React.FC = () => {
                   ¥{currentInvoice.totalAmount.toLocaleString()}
                 </span>
               </Descriptions.Item>
+              <Descriptions.Item label="已关联金额">
+                <span style={{ color: (currentInvoice.matchedAmount || 0) > 0 ? '#52c41a' : '#999' }}>
+                  ¥{(currentInvoice.matchedAmount || 0).toLocaleString()}
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="未关联金额">
+                <span style={{ color: (currentInvoice.unmatchedAmount || 0) > 0 ? '#faad14' : '#999' }}>
+                  ¥{(currentInvoice.unmatchedAmount || 0).toLocaleString()}
+                </span>
+              </Descriptions.Item>
               <Descriptions.Item label="验真状态">{getVerifyStatusTag(currentInvoice.verifyStatus)}</Descriptions.Item>
               <Descriptions.Item label="匹配状态">{getMatchStatusTag(currentInvoice.matchStatus)}</Descriptions.Item>
               <Descriptions.Item label="收票日期">{currentInvoice.receivedAt || '-'}</Descriptions.Item>
@@ -954,6 +1297,266 @@ const InvoiceManagement: React.FC = () => {
               </Form.Item>
             </Form>
           </div>
+        )}
+      </Modal>
+
+      {/* 批量导入弹窗 */}
+      <Modal
+        title="批量导入发票"
+        open={isBatchImportVisible}
+        onCancel={handleCloseBatchImport}
+        width={1100}
+        footer={
+          importStep === 0 ? [
+            <Button key="cancel" onClick={handleCloseBatchImport}>取消</Button>,
+            <Button 
+              key="next" 
+              type="primary" 
+              disabled={importFileList.length === 0} 
+              onClick={handleRecognizeAll}
+              icon={<ScanOutlined />}
+            >
+              开始识别 ({importFileList.length} 个文件)
+            </Button>,
+          ] : importStep === 1 ? [
+            <Button key="back" onClick={() => { setImportStep(0); setImportData([]); }} disabled={isRecognizingBatch}>
+              上一步
+            </Button>,
+            <Button key="cancel" onClick={handleCloseBatchImport} disabled={isRecognizingBatch}>取消</Button>,
+            <Button
+              key="import"
+              type="primary"
+              disabled={isRecognizingBatch || importData.filter(item => item.status !== 'error').length === 0}
+              onClick={handleStartImport}
+            >
+              确认导入
+            </Button>,
+          ] : importStep === 2 ? [
+            <Button key="cancel" disabled>导入中...</Button>,
+          ] : [
+            <Button key="close" type="primary" onClick={handleCloseBatchImport}>完成</Button>,
+          ]
+        }
+      >
+        <Steps
+          current={importStep}
+          items={[
+            { title: '上传发票', icon: <UploadOutlined /> },
+            { title: '识别确认', icon: <ScanOutlined /> },
+            { title: '导入中', icon: <ClockCircleOutlined /> },
+            { title: '完成', icon: <CheckCircleOutlined /> },
+          ]}
+          className="mb-6"
+        />
+
+        {importStep === 0 && (
+          <div>
+            <Dragger
+              name="invoiceFiles"
+              multiple
+              accept=".jpg,.jpeg,.png,.pdf,.ofd"
+              fileList={importFileList}
+              onChange={handleBatchFileUpload}
+              customRequest={(options) => {
+                setTimeout(() => options.onSuccess?.('ok'), 100);
+              }}
+              showUploadList={false}
+              style={{ padding: '30px 0' }}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined style={{ fontSize: 56, color: '#1890ff' }} />
+              </p>
+              <p className="ant-upload-text text-lg">点击或拖拽发票文件到此区域</p>
+              <p className="ant-upload-hint text-gray-400">
+                支持 JPG、PNG、PDF、OFD 格式，可同时上传多个文件
+              </p>
+            </Dragger>
+
+            {importFileList.length > 0 && (
+              <div className="mt-4">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="font-medium">已上传文件 ({importFileList.length})</span>
+                  <Button 
+                    type="link" 
+                    danger 
+                    size="small"
+                    onClick={() => setImportFileList([])}
+                  >
+                    清空全部
+                  </Button>
+                </div>
+                <div className="max-h-48 overflow-y-auto border rounded-lg">
+                  {importFileList.map((file, index) => (
+                    <div 
+                      key={file.uid} 
+                      className={`flex items-center justify-between p-3 ${index !== importFileList.length - 1 ? 'border-b' : ''}`}
+                    >
+                      <div className="flex items-center">
+                        {file.type?.includes('pdf') ? (
+                          <FilePdfOutlined style={{ fontSize: 20, color: '#ff4d4f', marginRight: 8 }} />
+                        ) : (
+                          <FileImageOutlined style={{ fontSize: 20, color: '#1890ff', marginRight: 8 }} />
+                        )}
+                        <div>
+                          <div className="text-sm truncate" style={{ maxWidth: 300 }}>{file.name}</div>
+                          <div className="text-xs text-gray-400">
+                            {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ''}
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        type="link" 
+                        danger 
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveFile(file.uid)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <div className="font-medium text-blue-600 mb-2">
+                <SafetyCertificateOutlined className="mr-2" />
+                批量识别说明
+              </div>
+              <ul className="text-sm text-gray-600 space-y-1 pl-4" style={{ listStyleType: 'disc' }}>
+                <li>支持增值税专用发票、普通发票、电子发票的图片或PDF</li>
+                <li>系统将自动识别发票号码、代码、金额等关键信息</li>
+                <li>识别完成后可预览和修正信息，确认无误后再导入</li>
+                <li>建议上传清晰、完整的发票图片以提高识别准确率</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {importStep === 1 && (
+          <div>
+            {isRecognizingBatch ? (
+              <div className="py-16 text-center">
+                <Spin size="large" />
+                <div className="mt-4 text-gray-500">
+                  正在识别发票信息，请稍候...
+                </div>
+                <div className="mt-2 text-gray-400 text-sm">
+                  共 {importFileList.length} 个文件
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <Row gutter={16}>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic title="识别文件数" value={importData.length} suffix="个" />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="识别成功"
+                          value={importData.filter(item => item.status === 'valid').length}
+                          suffix="个"
+                          valueStyle={{ color: '#52c41a' }}
+                        />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="需确认/失败"
+                          value={importData.filter(item => item.status !== 'valid').length}
+                          suffix="个"
+                          valueStyle={{ color: importData.some(item => item.status === 'error') ? '#ff4d4f' : '#faad14' }}
+                        />
+                      </Card>
+                    </Col>
+                    <Col span={6}>
+                      <Card size="small">
+                        <Statistic
+                          title="可导入金额"
+                          value={importData.filter(item => item.status !== 'error').reduce((sum, item) => sum + item.totalAmount, 0)}
+                          precision={2}
+                          prefix="¥"
+                          valueStyle={{ color: '#1890ff' }}
+                        />
+                      </Card>
+                    </Col>
+                  </Row>
+                </div>
+
+                {importData.some(item => item.status === 'error') && (
+                  <Alert
+                    message={`有 ${importData.filter(item => item.status === 'error').length} 个文件识别失败`}
+                    description="识别失败的文件将不会被导入，您可以移除后重新上传清晰的图片"
+                    type="error"
+                    showIcon
+                    className="mb-4"
+                  />
+                )}
+
+                {importData.some(item => item.status === 'warning') && !importData.some(item => item.status === 'error') && (
+                  <Alert
+                    message={`有 ${importData.filter(item => item.status === 'warning').length} 个文件需要确认`}
+                    description="请检查标记为警告的数据是否正确"
+                    type="warning"
+                    showIcon
+                    className="mb-4"
+                  />
+                )}
+
+                <Table
+                  columns={importColumns}
+                  dataSource={importData}
+                  rowKey="key"
+                  size="small"
+                  scroll={{ x: 1200, y: 280 }}
+                  pagination={false}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {importStep === 2 && (
+          <div className="py-12 text-center">
+            <Spin size="large" />
+            <div className="mt-6 mb-4">
+              <Progress percent={importProgress} status="active" />
+            </div>
+            <div className="text-gray-500">
+              正在导入发票数据，请稍候...
+            </div>
+          </div>
+        )}
+
+        {importStep === 3 && importResult && (
+          <Result
+            status={importResult.failed > 0 ? 'warning' : 'success'}
+            title={importResult.failed > 0 ? '导入完成（部分失败）' : '导入成功'}
+            subTitle={
+              <div>
+                <p>成功导入 <span className="text-green-500 font-bold">{importResult.success}</span> 张发票</p>
+                {importResult.failed > 0 && (
+                  <p>失败 <span className="text-red-500 font-bold">{importResult.failed}</span> 张</p>
+                )}
+              </div>
+            }
+            extra={
+              importResult.errors.length > 0 && (
+                <div className="text-left mt-4 p-4 bg-red-50 rounded-lg">
+                  <div className="font-medium text-red-600 mb-2">失败原因：</div>
+                  <ul className="text-sm text-gray-600 space-y-1 pl-4" style={{ listStyleType: 'disc' }}>
+                    {importResult.errors.map((err, index) => (
+                      <li key={index}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+          />
         )}
       </Modal>
     </div>

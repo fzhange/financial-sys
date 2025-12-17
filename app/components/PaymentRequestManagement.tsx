@@ -44,7 +44,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import type { PaymentRequest, PaymentVoucher, WriteOffDetail, AccountPayable } from '../types';
+import type { PaymentRequest, PaymentVoucher, WriteOffDetail, AccountPayable, Invoice } from '../types';
 import { mockPaymentRequests, mockSuppliers, mockAccountPayables, mockInvoices, getPaymentRequestStats } from '../lib/mockData';
 
 const { TextArea } = Input;
@@ -53,6 +53,7 @@ const { RangePicker } = DatePicker;
 const PaymentRequestManagement: React.FC = () => {
   const [requests, setRequests] = useState<PaymentRequest[]>(mockPaymentRequests);
   const [payables, setPayables] = useState<AccountPayable[]>(mockAccountPayables);
+  const [invoices] = useState<Invoice[]>(mockInvoices);
   const [paymentVouchers, setPaymentVouchers] = useState<PaymentVoucher[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
@@ -119,6 +120,23 @@ const PaymentRequestManagement: React.FC = () => {
     );
   };
 
+  // 通过应付账款获取关联的发票信息
+  const getRelatedInvoices = (request: PaymentRequest) => {
+    const relatedPayables = payables.filter(p => request.payableIds.includes(p.id));
+    const invoiceIds = relatedPayables.flatMap(p => p.invoiceIds);
+    return invoices.filter(inv => invoiceIds.includes(inv.id));
+  };
+
+  // 获取可请款的应付账款（已匹配发票且未完全付款）
+  const getPayablePayables = (supplierId?: string) => {
+    return payables.filter(p => 
+      p.status !== 'paid' && 
+      p.status !== 'cancelled' &&
+      p.invoiceIds.length > 0 &&  // 必须已关联发票
+      (!supplierId || p.supplierId === supplierId)
+    );
+  };
+
   const columns: ColumnsType<PaymentRequest> = [
     {
       title: '请款单号',
@@ -178,16 +196,16 @@ const PaymentRequestManagement: React.FC = () => {
     },
     {
       title: '关联发票',
-      dataIndex: 'invoiceNos',
-      key: 'invoiceNos',
+      key: 'invoices',
       width: 120,
-      render: (nos: string[]) => (
-        nos.length > 0 ? (
-          <Tooltip title={nos.join(', ')}>
-            <span>{nos.length}张</span>
+      render: (_, record) => {
+        const relatedInvoices = getRelatedInvoices(record);
+        return relatedInvoices.length > 0 ? (
+          <Tooltip title={relatedInvoices.map(inv => inv.invoiceNo).join(', ')}>
+            <span style={{ color: '#52c41a' }}>{relatedInvoices.length}张</span>
           </Tooltip>
-        ) : '-'
-      ),
+        ) : <span style={{ color: '#faad14' }}>-</span>;
+      },
     },
     {
       title: '期望付款日',
@@ -413,8 +431,6 @@ const PaymentRequestManagement: React.FC = () => {
         requestType: values.requestType,
         payableIds: values.payableIds || [],
         payableNos: values.payableIds?.map((id: string) => payables.find(p => p.id === id)?.payableNo || '') || [],
-        invoiceIds: values.invoiceIds || [],
-        invoiceNos: values.invoiceIds?.map((id: string) => mockInvoices.find(i => i.id === id)?.invoiceNo || '') || [],
         requestAmount: values.requestAmount,
         approvedAmount: 0,
         paymentMethod: values.paymentMethod,
@@ -632,23 +648,28 @@ const PaymentRequestManagement: React.FC = () => {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="payableIds" label="关联应付账款">
-                <Select mode="multiple" placeholder="选择关联的应付账款" allowClear>
-                  {payables.filter(p => p.status !== 'paid' && p.status !== 'cancelled').map(p => (
+            <Col span={24}>
+              <Form.Item 
+                name="payableIds" 
+                label="关联应付账款"
+                rules={[{ required: true, message: '请选择关联的应付账款' }]}
+                extra="只显示已匹配发票的应付账款，请先在发票管理中完成发票匹配"
+              >
+                <Select 
+                  mode="multiple" 
+                  placeholder="选择关联的应付账款（已匹配发票）" 
+                  allowClear
+                  onChange={(ids: string[]) => {
+                    // 自动计算请款金额
+                    const selectedPayables = payables.filter(p => ids.includes(p.id));
+                    const totalAmount = selectedPayables.reduce((sum, p) => sum + p.unpaidAmount, 0);
+                    form.setFieldValue('requestAmount', totalAmount);
+                  }}
+                >
+                  {getPayablePayables(form.getFieldValue('supplierId')).map(p => (
                     <Select.Option key={p.id} value={p.id}>
-                      {p.payableNo} - {p.supplierName} (¥{p.unpaidAmount.toLocaleString()})
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="invoiceIds" label="关联发票">
-                <Select mode="multiple" placeholder="选择关联的发票" allowClear>
-                  {mockInvoices.filter(i => i.status !== 'cancelled').map(i => (
-                    <Select.Option key={i.id} value={i.id}>
-                      {i.invoiceNo} - {i.supplierName} (¥{i.totalAmount.toLocaleString()})
+                      {p.payableNo} - {p.supplierName} (待付: ¥{p.unpaidAmount.toLocaleString()}) 
+                      {p.invoiceNos.length > 0 && <span style={{ color: '#52c41a' }}> [已匹配发票: {p.invoiceNos.join(', ')}]</span>}
                     </Select.Option>
                   ))}
                 </Select>
@@ -998,20 +1019,25 @@ const PaymentRequestManagement: React.FC = () => {
                       ))}
                     </Space>
                   ) : (
-                    <span className="text-gray-400">无关联应付</span>
+                    <span className="text-gray-400">无关联应付（可能为预付款）</span>
                   )}
                 </Col>
                 <Col span={12}>
-                  <div className="font-medium mb-2">关联发票</div>
-                  {currentRequest.invoiceNos.length > 0 ? (
-                    <Space direction="vertical" size="small">
-                      {currentRequest.invoiceNos.map((no, index) => (
-                        <Tag key={index} icon={<FileTextOutlined />} color="green">{no}</Tag>
-                      ))}
-                    </Space>
-                  ) : (
-                    <span className="text-gray-400">无关联发票</span>
-                  )}
+                  <div className="font-medium mb-2">关联发票（通过应付账款）</div>
+                  {(() => {
+                    const relatedInvoices = getRelatedInvoices(currentRequest);
+                    return relatedInvoices.length > 0 ? (
+                      <Space direction="vertical" size="small">
+                        {relatedInvoices.map((inv) => (
+                          <Tag key={inv.id} icon={<FileTextOutlined />} color="green">
+                            {inv.invoiceNo} (¥{inv.totalAmount.toLocaleString()})
+                          </Tag>
+                        ))}
+                      </Space>
+                    ) : (
+                      <span className="text-gray-400">无关联发票</span>
+                    );
+                  })()}
                 </Col>
               </Row>
             </Card>

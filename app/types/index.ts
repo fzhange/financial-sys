@@ -49,6 +49,8 @@ export interface ReconciliationStatement {
   confirmedAmount: number;         // 确认金额
   status: 'draft' | 'pending' | 'confirmed' | 'disputed' | 'resolved';
   receipts: ReconciliationReceiptItem[];  // 关联的入库单
+  payableId?: string;              // 关联的应付单ID
+  payableNo?: string;              // 关联的应付单号
   createdAt: string;
   updatedAt: string;
   confirmedAt?: string;
@@ -175,10 +177,26 @@ export interface AccountPayable {
   unpaidAmount: number;
   dueDate: string;
   status: 'pending' | 'partial' | 'paid' | 'overdue' | 'cancelled';
+  invoiceIds: string[];       // 关联的发票ID（多对多）
+  invoiceNos: string[];       // 关联的发票号
+  invoiceAmount: number;      // 已关联发票金额
   createdAt: string;
   updatedAt: string;
   paidAt?: string;
   remark?: string;
+}
+
+// 应付账款-发票关联明细
+export interface PayableInvoiceRelation {
+  id: string;
+  payableId: string;
+  payableNo: string;
+  invoiceId: string;
+  invoiceNo: string;
+  invoiceAmount: number;      // 发票总金额
+  relatedAmount: number;      // 本次关联金额
+  createdAt: string;
+  operator: string;
 }
 
 // 付款记录
@@ -242,16 +260,16 @@ export interface PayableStats {
 }
 
 // 请款单
+// 业务流程：对账单确认 → 生成应付账款 → 发票匹配应付账款 → 创建请款单（关联应付账款）→ 审批付款
+// 请款单只关联应付账款，发票信息通过应付账款间接获取
 export interface PaymentRequest {
   id: string;
   requestNo: string;
   supplierId: string;
   supplierName: string;
   requestType: 'normal' | 'advance' | 'urgent';  // 普通/预付/紧急
-  payableIds: string[];       // 关联的应付账款ID
+  payableIds: string[];       // 关联的应付账款ID（核心关联）
   payableNos: string[];       // 关联的应付账款单号
-  invoiceIds: string[];       // 关联的发票ID
-  invoiceNos: string[];       // 关联的发票号
   requestAmount: number;      // 请款金额
   approvedAmount: number;     // 批准金额
   paymentMethod: 'bank_transfer' | 'cash' | 'check' | 'other';
@@ -296,6 +314,8 @@ export interface Invoice {
   taxRate: number;            // 税率
   taxAmount: number;          // 税额
   totalAmount: number;        // 含税金额
+  matchedAmount: number;      // 已关联金额
+  unmatchedAmount: number;    // 未关联金额
   payableIds: string[];       // 关联的应付账款ID
   payableNos: string[];       // 关联的应付账款单号
   reconciliationIds: string[]; // 关联的对账单ID

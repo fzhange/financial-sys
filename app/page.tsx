@@ -20,6 +20,7 @@ import dayjs from 'dayjs';
 export default function Home() {
   const [currentKey, setCurrentKey] = useState('dashboard');
   const [newPayables, setNewPayables] = useState<AccountPayableType[]>([]);
+  const [highlightPayableNo, setHighlightPayableNo] = useState<string | undefined>();
 
   // 对账确认后生成应付账款
   const handleConfirmReconciliation = useCallback((statement: ReconciliationStatement, payableAmount: number) => {
@@ -48,6 +49,16 @@ export default function Home() {
     }, 1500);
   }, [newPayables.length]);
 
+  // 从对账单管理跳转到应付账款
+  const handleNavigateToPayable = useCallback((payableNo: string) => {
+    setHighlightPayableNo(payableNo);
+    setCurrentKey('payables');
+    // 清除高亮状态
+    setTimeout(() => {
+      setHighlightPayableNo(undefined);
+    }, 3000);
+  }, []);
+
   const renderContent = () => {
     switch (currentKey) {
       case 'dashboard':
@@ -57,11 +68,11 @@ export default function Home() {
       case 'receipts':
         return <PurchaseReceipts />;
       case 'statements':
-        return <StatementManagement />;
+        return <StatementManagement onNavigateToPayable={handleNavigateToPayable} />;
       case 'reconciliation':
         return <ReconciliationCheck onConfirmReconciliation={handleConfirmReconciliation} />;
       case 'payables':
-        return <AccountPayable />;
+        return <AccountPayable highlightPayableNo={highlightPayableNo} />;
       case 'invoices':
         return <InvoiceManagement />;
       case 'paymentRequests':
